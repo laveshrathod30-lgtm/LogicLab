@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LogicLab</title>
+<style>
+:root{--bg:#0a0d18;--panel:#12182a;--panel2:#171f35;--line:#27314b;--text:#edf1ff;--muted:#a3adc9;--purple:#9270ff;--cyan:#4de0dc;--green:#53e0a0;--red:#ff8a94}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 "Trebuchet MS","Segoe UI",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;padding:16px clamp(16px,4vw,40px);border-bottom:1px solid var(--line);background:#0c1020}
+.logo{font-size:22px;font-weight:700}.logo b{color:var(--cyan)}
+nav{display:flex;gap:8px}
+nav button{background:transparent;border:1px solid transparent;color:var(--muted);padding:8px 16px;border-radius:10px;font:inherit;cursor:pointer}
+nav button.on{background:#9270ff26;border-color:#9270ff66;color:#fff}
+main{max-width:1000px;margin:0 auto;padding:28px clamp(16px,4vw,40px) 40px}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:0 0 8px}
+h2{font-size:20px;margin:0 0 12px;line-height:1.35}
+.muted{color:var(--muted)}.small{font-size:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+button.card{display:block;width:100%;margin:0}
+.grid{display:grid;gap:16px;margin-bottom:16px}.grid .card{margin:0}
+.stats{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.num{font-size:34px;font-weight:700;color:var(--cyan);line-height:1.1}
+.bar{display:grid;grid-template-columns:140px 1fr 44px;gap:10px;align-items:center;margin:10px 0;font-size:14px}
+.track{height:10px;background:#252d47;border-radius:9px;overflow:hidden}
+.track i{display:block;height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan))}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600}
+.team{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.member{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}
+.av{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-weight:700;background:linear-gradient(135deg,#ff73bd,#9270ff);flex:none}
+.btn{background:linear-gradient(100deg,var(--purple),#6f8dff);border:0;color:#fff;padding:11px 20px;border-radius:12px;font:inherit;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.alt{background:transparent;border:1px solid var(--line);color:var(--text)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.opt{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 14px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;color:var(--text);font:inherit;cursor:pointer}
+.opt:hover{border-color:var(--purple)}
+.opt.sel{border-color:var(--cyan);background:#4de0dc14}
+.opt.right{border-color:var(--green);background:#53e0a01a}
+.opt.wrong{border-color:var(--red);background:#ff8a941a}
+.why{margin:14px 0;padding:12px 14px;border-left:3px solid var(--cyan);background:#4de0dc10;border-radius:0 10px 10px 0}
+.topic{text-align:left;color:var(--text);font:inherit;cursor:pointer}
+.topic:hover{border-color:var(--purple)}
+button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+code{background:#252d47;padding:1px 6px;border-radius:6px}
+textarea,input,select{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit}
+.ex{font-size:13px;padding:8px 12px;text-align:left}
+ol li{margin:6px 0}
+label{display:block;margin:12px 0;color:var(--muted);font-size:14px}
+label input,label select{margin-top:6px}
+.auth{max-width:420px;margin:30px auto}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:0 16px 24px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Logic<b>Lab</b></div>
+  <nav id="nav" style="display:none"><button id="n-dash">Dashboard</button><button id="n-learn">Learn</button><button id="n-prac">Practice</button><button id="n-solve">Solver</button><button id="n-out">Log out</button></nav>
+</header>
+<main id="app">Opening database...</main>
+<footer>LogicLab, Logic and Data Interpretation learning system. Academic project. Database: IndexedDB "LogicLabDB" with tables users, team, questions, results and history.</footer>
+
+<script>
+// ---------- 1. DATA THAT IS STORED IN THE DATABASE ----------
+const TOPICS = ["Clocks", "Calendar", "Number Patterns", "Data Interpretation", "Angles"];
+
+// Project team (saved in the "team" table)
+const TEAM = ["Namrata Rasal", "Lavesh Rathod", "Karthik Salluri", "Vaishnavi Savekar"]
+  .map((name, i) => ({ id: i + 1, name }));
+
+// Questions (saved in the "questions" table): [topic, question, options, correct option number, explanation]
+const QUESTIONS = [
+  ["Clocks", "What is the angle between the hour and minute hands at 3:00?", ["60°", "90°", "120°", "180°"], 1, "At 3:00 the minute hand points at 12 and the hour hand at 3. Each hour mark is 30°, so 3 × 30° = 90°."],
+  ["Clocks", "What is the angle between the hands at 6:00?", ["90°", "120°", "150°", "180°"], 3, "The hands point in opposite directions: 6 × 30° = 180°."],
+  ["Clocks", "How many degrees does the minute hand move in 10 minutes?", ["30°", "45°", "60°", "90°"], 2, "The minute hand moves 6° every minute, so 10 × 6° = 60°."],
+  ["Calendar", "How many days are there in a leap year?", ["364", "365", "366", "367"], 2, "A leap year adds 29 February, so it has 366 days."],
+  ["Calendar", "Today is Monday. What day will it be after 10 days?", ["Wednesday", "Thursday", "Friday", "Saturday"], 1, "10 ÷ 7 leaves a remainder of 3. Monday + 3 days = Thursday."],
+  ["Calendar", "Which of these is a leap year?", ["1900", "2023", "2024", "2100"], 2, "2024 is divisible by 4. 1900 and 2100 are century years not divisible by 400, so they are not leap years."],
+  ["Number Patterns", "Find the next number: 2, 5, 8, 11, ?", ["13", "14", "15", "16"], 1, "The difference is +3 each time, so 11 + 3 = 14."],
+  ["Number Patterns", "Find the next number: 3, 6, 12, 24, ?", ["30", "36", "42", "48"], 3, "Each term is doubled, so 24 × 2 = 48."],
+  ["Number Patterns", "Find the next number: 1, 4, 9, 16, ?", ["20", "24", "25", "36"], 2, "These are squares: 1², 2², 3², 4². The next is 5² = 25."],
+  ["Data Interpretation", "A sector in a pie chart is 25% of the total. What is its angle?", ["25°", "45°", "90°", "120°"], 2, "Angle = 25% of 360° = 90°."],
+  ["Data Interpretation", "A pie chart has categories with values 40, 35 and 25. What is the percentage share of the first?", ["25%", "35%", "40%", "50%"], 2, "The total is 100, so the share is 40 ÷ 100 × 100 = 40%."],
+  ["Data Interpretation", "What is the average of 10, 20, 30 and 40?", ["20", "25", "30", "22.5"], 1, "Sum = 100. Average = 100 ÷ 4 = 25."],
+  ["Clocks", "What is the angle between the hands at 4:30?", ["30°", "60°", "75°", "45°"], 3, "|30 × 4 − 5.5 × 30| = |120 − 165| = 45°."],
+  ["Clocks", "What is the angle between the hands at 7:20?", ["100°", "90°", "110°", "80°"], 0, "|30 × 7 − 5.5 × 20| = |210 − 110| = 100°."],
+  ["Clocks", "How many degrees does the hour hand move in one hour?", ["15°", "45°", "30°", "60°"], 2, "360° ÷ 12 hours = 30° per hour."],
+  ["Calendar", "How many odd days are in an ordinary year?", ["0", "2", "3", "1"], 3, "365 days = 52 weeks + 1 day, so 1 odd day."],
+  ["Calendar", "How many odd days are in a leap year?", ["1", "2", "3", "0"], 1, "366 days = 52 weeks + 2 days, so 2 odd days."],
+  ["Calendar", "Which day of the week was 15 August 1947?", ["Friday", "Wednesday", "Thursday", "Saturday"], 0, "Counting all days from 1 January year 1 gives a remainder of 5 when divided by 7, which is Friday."],
+  ["Number Patterns", "Find the next number: 2, 6, 18, 54, ?", ["108", "148", "162", "72"], 2, "Each term is multiplied by 3: 54 × 3 = 162."],
+  ["Number Patterns", "Find the next number: 1, 1, 2, 3, 5, 8, ?", ["11", "13", "12", "14"], 1, "Each term is the sum of the previous two: 5 + 8 = 13."],
+  ["Number Patterns", "Find the next number: 1, 8, 27, 64, ?", ["125", "100", "216", "81"], 0, "These are cubes: 1³, 2³, 3³, 4³. The next is 5³ = 125."],
+  ["Data Interpretation", "Sales rose from 50 to 65. What is the percentage increase?", ["15%", "23%", "13%", "30%"], 3, "(65 − 50) ÷ 50 × 100 = 30%."],
+  ["Data Interpretation", "The average of 4 numbers is 20. Three of them are 15, 20 and 25. Find the fourth.", ["15", "25", "20", "30"], 2, "Total = 4 × 20 = 80. Known sum = 60. Missing = 80 − 60 = 20."],
+  ["Data Interpretation", "A pie chart sector has an angle of 108°. What percentage is it?", ["30%", "25%", "36%", "40%"], 0, "108 ÷ 360 × 100 = 30%."],
+  ["Angles", "What is the complement of 35°?", ["45°", "65°", "55°", "145°"], 2, "Complementary angles add to 90°: 90° − 35° = 55°."],
+  ["Angles", "What is the supplement of 110°?", ["70°", "60°", "80°", "90°"], 0, "Supplementary angles add to 180°: 180° − 110° = 70°."],
+  ["Angles", "Two angles of a triangle are 50° and 60°. Find the third.", ["60°", "80°", "90°", "70°"], 3, "Angles of a triangle add to 180°: 180° − 110° = 70°."],
+  ["Angles", "What is the sum of the interior angles of a hexagon?", ["540°", "900°", "720°", "360°"], 2, "(n − 2) × 180° = (6 − 2) × 180° = 720°."],
+  ["Angles", "What is each exterior angle of a regular pentagon?", ["72°", "60°", "108°", "120°"], 0, "360° ÷ n = 360° ÷ 5 = 72°."],
+  ["Angles", "What is each interior angle of a regular octagon?", ["120°", "140°", "150°", "135°"], 3, "(8 − 2) × 180° ÷ 8 = 1080° ÷ 8 = 135°."],
+].map((q, i) => ({ id: i + 1, topic: q[0], q: q[1], opts: q[2], ans: q[3], why: q[4] }));
+
+// ---------- 2. DATABASE FUNCTIONS (IndexedDB) ----------
+let db;
+
+// Open the database. The first time, create the three tables (object stores).
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const r = indexedDB.open("LogicLabDB", 2);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      // Create any table that does not exist yet (version 2 adds "users")
+      [["team"], ["questions"], ["results", 1], ["history", 1], ["users"]].forEach(([n, auto]) => {
+        if (!d.objectStoreNames.contains(n)) d.createObjectStore(n, { keyPath: n === "users" ? "username" : "id", autoIncrement: !!auto });
+      });
+    };
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+const table = (name, mode = "readonly") => db.transaction(name, mode).objectStore(name);
+const wait = (request) => new Promise((resolve, reject) => {
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+const getAll = (name) => wait(table(name).getAll());          // read every row
+const addRow = (name, row) => wait(table(name, "readwrite").add(row)); // insert one row
+const countRows = (name) => wait(table(name).count());
+function putRows(name, rows) {                                  // insert many rows
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(name, "readwrite");
+    rows.forEach((row) => t.objectStore(name).put(row));
+    t.oncomplete = resolve;
+    t.onerror = () => reject(t.error);
+  });
+}
+// Fill the team and questions tables the first time the app runs
+async function seed() {
+  if (!(await countRows("team"))) await putRows("team", TEAM);
+  if (!(await countRows("questions"))) await putRows("questions", QUESTIONS);
+}
+
+// ---------- 3. SMALL HELPERS ----------
+const $ = (s) => document.querySelector(s);
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const initials = (n) => n.split(" ").map((w) => w[0]).join("");
+const sum = (rows, key) => rows.reduce((s, r) => s + r[key], 0);
+const pct = (c, t) => (t ? Math.round((c / t) * 100) : 0);
+function setNav(which) {
+  ["dash", "learn", "prac", "solve"].forEach((k) => $("#n-" + k).classList.toggle("on", k === which));
+}
+
+// ---------- 4. DASHBOARD ----------
+async function showDashboard() {
+  setNav("dash");
+  const team = await getAll("team");
+  const results = (await getAll("results")).filter((r) => r.user === user);
+  const answered = sum(results, "total");
+  const bars = TOPICS.map((t) => {
+    const rs = results.filter((r) => r.topic === t);
+    const p = pct(sum(rs, "correct"), sum(rs, "total"));
+    return `<div class="bar"><span>${esc(t)}</span><div class="track"><i style="width:${p}%"></i></div><b>${p}%</b></div>`;
+  }).join("");
+  const recent = results.slice(-5).reverse();
+  const table5 = recent.length
+    ? `<table><tr><th>Date</th><th>Topic</th><th>Score</th></tr>${recent.map((r) =>
+        `<tr><td>${esc(new Date(r.date).toLocaleDateString())}</td><td>${esc(r.topic)}</td><td>${r.correct} / ${r.total}</td></tr>`).join("")}</table>`
+    : `<p class="muted">No results yet. Finish a quiz in Practice and it will appear here.</p>`;
+
+  $("#app").innerHTML = `
+    <h1>LogicLab dashboard</h1>
+    <p class="muted">Practice logic and data interpretation. Everything on this page is read from the database.</p>
+    <div class="card">
+      <h2>Developed by</h2>
+      <div class="team">${team.map((m) => `<div class="member"><div class="av">${esc(initials(m.name))}</div><b>${esc(m.name)}</b></div>`).join("")}</div>
+    </div>
+    <div class="grid stats">
+      <div class="card"><div class="num">${results.length}</div><div class="muted">Quizzes taken</div></div>
+      <div class="card"><div class="num">${answered}</div><div class="muted">Questions answered</div></div>
+      <div class="card"><div class="num">${pct(sum(results, "correct"), answered)}%</div><div class="muted">Overall accuracy</div></div>
+    </div>
+    <div class="grid two">
+      <div class="card"><h2>Accuracy by topic</h2>${bars}</div>
+      <div class="card"><h2>Recent results</h2>${table5}</div>
+    </div>
+    <div class="row"><button id="go" class="btn">Start practising</button><button id="reset" class="btn alt">Reset saved results</button></div>`;
+  $("#go").onclick = showPractice;
+  $("#reset").onclick = async () => {
+    if (confirm("Delete all saved results?")) {
+      const st = table("results", "readwrite");
+      results.forEach((r) => st.delete(r.id));
+      showDashboard();
+    }
+  };
+}
+
+// ---------- 5. PRACTICE QUIZ ----------
+let quiz = null;
+
+function showPractice() {
+  setNav("prac");
+  $("#app").innerHTML = `
+    <h1>Practice</h1>
+    <p class="muted">Choose a topic. The questions are read from the database and your score is saved when you finish.</p>
+    <div class="grid two">${TOPICS.map((t) => `<button class="card topic" data-t="${esc(t)}"><h2>${esc(t)}</h2><span class="muted small">${QUESTIONS.filter((q) => q.topic === t).length} questions</span></button>`).join("")}</div>`;
+  document.querySelectorAll(".topic").forEach((b) => (b.onclick = () => startQuiz(b.dataset.t)));
+}
+
+async function startQuiz(topic) {
+  const all = await getAll("questions");
+  quiz = { topic, qs: all.filter((q) => q.topic === topic), i: 0, correct: 0, picked: null, checked: false };
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = quiz.qs[quiz.i];
+  const last = quiz.i === quiz.qs.length - 1;
+  const opts = q.opts.map((o, k) => {
+    let c = "";
+    if (quiz.checked) { if (k === q.ans) c = "right"; else if (k === quiz.picked) c = "wrong"; }
+    else if (k === quiz.picked) c = "sel";
+    return `<button class="opt ${c}" data-k="${k}">${"ABCD"[k]}. ${esc(o)}</button>`;
+  }).join("");
+  const why = quiz.checked ? `<div class="why"><b>${quiz.picked === q.ans ? "Correct." : "Not quite."}</b> ${esc(q.why)}</div>` : "";
+  const label = quiz.checked ? (last ? "Finish and save score" : "Next question") : "Check answer";
+  $("#app").innerHTML = `
+    <p class="muted small">${esc(quiz.topic)}, question ${quiz.i + 1} of ${quiz.qs.length}</p>
+    <div class="card"><h2>${esc(q.q)}</h2>${opts}${why}
+      <div class="row"><button id="next" class="btn" ${quiz.picked === null ? "disabled" : ""}>${label}</button><button id="back" class="btn alt">Back to topics</button></div>
+    </div>`;
+  document.querySelectorAll(".opt").forEach((b) => (b.onclick = () => {
+    if (quiz.checked) return;
+    quiz.picked = +b.dataset.k;
+    renderQuestion();
+  }));
+  $("#next").onclick = () => {
+    if (!quiz.checked) { quiz.checked = true; if (quiz.picked === q.ans) quiz.correct++; renderQuestion(); }
+    else if (!last) { quiz.i++; quiz.picked = null; quiz.checked = false; renderQuestion(); }
+    else finishQuiz();
+  };
+  $("#back").onclick = showPractice;
+}
+
+async function finishQuiz() {
+  // Save this attempt as a new row in the "results" table
+  await addRow("results", { user, topic: quiz.topic, correct: quiz.correct, total: quiz.qs.length, date: Date.now() });
+  $("#app").innerHTML = `
+    <h1>You scored ${quiz.correct} out of ${quiz.qs.length}</h1>
+    <p class="muted">Your result was saved to the <code>results</code> table and now shows on the dashboard.</p>
+    <div class="row"><button id="d" class="btn">View dashboard</button><button id="p" class="btn alt">Practice another topic</button></div>`;
+  $("#d").onclick = showDashboard;
+  $("#p").onclick = showPractice;
+}
+
+// ---------- 5b. LEARN ----------
+const LEARN = [
+  { t: "Clocks", intro: "A clock face is a circle of 360°, split into 12 hours or 60 minutes.",
+    f: [["Minute hand speed", "6° per minute (360° ÷ 60)"], ["Hour hand speed", "30° per hour = 0.5° per minute"], ["Angle at H:M", "|30 × H − 5.5 × M|"], ["Angle above 180°", "use 360° − angle"], ["Hands overlap at", "M = 60 × H ÷ 11 minutes past H"]],
+    s: ["Write the time as H hours and M minutes (use H = 0 for 12).", "Hour hand from 12 = 30 × H + 0.5 × M degrees.", "Minute hand from 12 = 6 × M degrees.", "Subtract the smaller from the larger. If the result is more than 180°, subtract it from 360°."],
+    e: [["Angle at 4:30", "Hour hand = 30 × 4 + 0.5 × 30 = 135°. Minute hand = 6 × 30 = 180°. Difference = 45°."], ["Angle at 7:20", "Hour hand = 210 + 10 = 220°. Minute hand = 6 × 20 = 120°. Difference = 100°."]] },
+  { t: "Angles", intro: "Angle rules let you find a missing angle from the ones you know.",
+    f: [["Complementary angles", "add up to 90°"], ["Supplementary angles", "add up to 180° (also a straight line)"], ["Full turn", "360°"], ["Triangle", "angles add up to 180°"], ["Quadrilateral", "angles add up to 360°"], ["Polygon, sum of interior angles", "(n − 2) × 180°"], ["Regular polygon, each interior angle", "(n − 2) × 180° ÷ n"], ["Regular polygon, each exterior angle", "360° ÷ n"], ["Vertically opposite angles", "are equal"]],
+    s: ["Identify the shape or the angle pair in the question.", "Choose the rule that matches (90°, 180°, 360° or the polygon formula).", "Subtract the known angles from the total to get the missing angle."],
+    e: [["Regular hexagon (n = 6)", "Sum = (6 − 2) × 180 = 720°. Each interior angle = 720 ÷ 6 = 120°. Each exterior angle = 360 ÷ 6 = 60°."], ["Third angle of a triangle with 50° and 60°", "180° − (50° + 60°) = 70°."]] },
+  { t: "Calendar", intro: "Weekdays repeat every 7 days, so only the remainder after dividing by 7 (the odd days) matters.",
+    f: [["Ordinary year", "365 days = 52 weeks + 1 odd day"], ["Leap year", "366 days = 52 weeks + 2 odd days"], ["Leap year rule", "divisible by 4; a century year must be divisible by 400"], ["Odd days in centuries", "100 years = 5, 200 = 3, 300 = 1, 400 = 0"], ["Odd days in months", "31 days = 3, 30 days = 2, 28 days = 0 (Feb in a leap year = 1)"], ["Day after n days", "move forward by the remainder of n ÷ 7"]],
+    s: ["Count the total days from 1 January of year 1 up to and including the date.", "Divide the total by 7 and keep the remainder.", "Remainder 0 = Sunday, 1 = Monday, 2 = Tuesday ... 6 = Saturday."],
+    e: [["Day on 15 August 1947", "1946 complete years contain 471 leap years: 1946 × 365 + 471 = 710,761 days. Add 227 days up to 15 August: 710,988. 710,988 ÷ 7 leaves 5, so it was Friday."], ["Today is Tuesday. Day after 100 days?", "100 ÷ 7 leaves 2. Tuesday + 2 days = Thursday."]] },
+  { t: "Number Patterns", intro: "Find the rule that connects the terms, then apply it to get the next term.",
+    f: [["Arithmetic series", "nth term = a + (n − 1) × d"], ["Geometric series", "nth term = a × r^(n − 1)"], ["Squares and cubes", "n² and n³"], ["Fibonacci type", "each term = sum of the previous two"], ["Quadratic type", "the second differences are constant"]],
+    s: ["Find the differences between neighbouring terms. If equal, it is arithmetic.", "If not, divide each term by the one before. If equal, it is geometric.", "Check for squares, cubes and the sum of the previous two terms.", "Otherwise find the differences of the differences."],
+    e: [["3, 7, 11, 15, ?", "Difference = 4, so the next term is 19 and the nth term = 3 + (n − 1) × 4."], ["2, 5, 10, 17, ?", "Differences 3, 5, 7 grow by 2. The next difference is 9, so the next term is 26."]] },
+  { t: "Data Interpretation", intro: "Averages, percentages and pie charts all turn raw numbers into a comparison.",
+    f: [["Average", "sum ÷ count"], ["Percentage change", "(new − old) ÷ old × 100"], ["Missing value", "count × average − sum of known values"], ["Pie sector angle", "value ÷ total × 360°"], ["Angle from percentage", "% × 3.6°"], ["Percentage from angle", "angle ÷ 360 × 100"], ["Value from angle", "angle ÷ 360 × total"]],
+    s: ["Read the title, units and labels first.", "Write the formula and substitute the values.", "Check that pie chart angles add up to 360° and percentages to 100%."],
+    e: [["Pie chart values 40, 35, 25", "Total = 100. Angles = 144°, 126° and 90°, which add up to 360°."], ["Average of 5 numbers is 18; four are 10, 15, 20, 25", "Total = 90. Known sum = 70. Missing value = 20."]] },
+];
+let learnTopic = 0;
+function showLearn(i = learnTopic) {
+  learnTopic = i; setNav("learn");
+  const L = LEARN[i];
+  $("#app").innerHTML = `
+    <h1>Learn</h1>
+    <p class="muted">Formulas, steps and worked examples for every topic.</p>
+    <div class="row">${LEARN.map((x, k) => `<button class="btn ${k === i ? "" : "alt"}" data-k="${k}">${esc(x.t)}</button>`).join("")}</div>
+    <div class="card" style="margin-top:16px"><h2>${esc(L.t)}</h2><p class="muted">${esc(L.intro)}</p>
+      <h2>Key formulas</h2><table>${L.f.map((r) => `<tr><th>${esc(r[0])}</th><td><code>${esc(r[1])}</code></td></tr>`).join("")}</table>
+      <h2 style="margin-top:20px">How to calculate</h2><ol>${L.s.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
+      <h2>Worked examples</h2>${L.e.map((x) => `<div class="why"><b>${esc(x[0])}</b><br>${esc(x[1])}</div>`).join("")}
+      <div class="row"><button id="lp" class="btn">Practice ${esc(L.t)}</button><button id="ls" class="btn alt">Solve my own question</button></div></div>`;
+  document.querySelectorAll("[data-k]").forEach((b) => (b.onclick = () => showLearn(+b.dataset.k)));
+  $("#lp").onclick = () => startQuiz(L.t);
+  $("#ls").onclick = () => showSolver();
+}
+
+// ---------- 5c. QUESTION SOLVER ----------
+// SOLVER-START
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const SHAPES = { triangle: 3, quadrilateral: 4, pentagon: 5, hexagon: 6, heptagon: 7, octagon: 8, nonagon: 9, decagon: 10 };
+const fmt = (n) => String(+n.toFixed(2));
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const total = (a) => a.reduce((x, y) => x + y, 0);
+
+function solve(text) {
+  const s = text.toLowerCase();
+  const nums = (s.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+  let m;
+  // Clock angle
+  if (/hand|clock/.test(s) && (m = s.match(/(\d{1,2})\s*[:.]\s*(\d{2})/) || s.match(/(\d{1,2})\s*()o.?clock/))) {
+    const H = +m[1], M = +m[2] || 0, h = H % 12, a = 30 * h + 0.5 * M, b = 6 * M, d = Math.abs(a - b);
+    return { type: "Clock angle", ans: fmt(d > 180 ? 360 - d : d) + "°", steps: [
+      `Time = ${H}:${String(M).padStart(2, "0")}, so H = ${h} and M = ${M}.`,
+      `Hour hand from 12 = 30 × ${h} + 0.5 × ${M} = ${fmt(a)}°.`,
+      `Minute hand from 12 = 6 × ${M} = ${fmt(b)}°.`,
+      `Difference = |${fmt(a)} − ${fmt(b)}| = ${fmt(d)}°.`,
+      ...(d > 180 ? [`${fmt(d)}° is more than 180°, so the angle is 360° − ${fmt(d)}° = ${fmt(360 - d)}°.`] : [])] };
+  }
+  // Pie chart
+  if (/pie|sector/.test(s)) {
+    if (/%|percent/.test(s)) {
+      const ps = (s.match(/\d+(?:\.\d+)?(?=\s*(?:%|percent))/g) || []).map(Number);
+      return { type: "Pie chart: percentage to angle", ans: ps.map((p) => fmt(p * 3.6) + "°").join(", "), steps: ["Angle = percentage × 3.6°, because 360° ÷ 100 = 3.6°.", ...ps.map((p) => `${fmt(p)}% gives ${fmt(p)} × 3.6 = ${fmt(p * 3.6)}°.`)] };
+    }
+    if (nums.length >= 2) {
+      const t = total(nums);
+      return { type: "Pie chart: values to angles", ans: nums.map((v) => fmt((v / t) * 360) + "°").join(", "), steps: [`Total = ${nums.map(fmt).join(" + ")} = ${fmt(t)}.`, "Angle = value ÷ total × 360° and percentage = value ÷ total × 100.", ...nums.map((v) => `${fmt(v)}: ${fmt((v / t) * 100)}% and ${fmt(v)} ÷ ${fmt(t)} × 360 = ${fmt((v / t) * 360)}°.`)] };
+    }
+    if (nums.length === 1) return { type: "Pie chart: angle to percentage", ans: fmt(nums[0] / 3.6) + "%", steps: [`Percentage = angle ÷ 360 × 100 = ${fmt(nums[0])} ÷ 360 × 100 = ${fmt(nums[0] / 3.6)}%.`] };
+  }
+  // Angle rules
+  if (/complement/.test(s) && nums.length) return { type: "Complementary angle", ans: fmt(90 - nums[0]) + "°", steps: ["Complementary angles add up to 90°.", `Angle = 90° − ${fmt(nums[0])}° = ${fmt(90 - nums[0])}°.`] };
+  if (/supplement/.test(s) && nums.length) return { type: "Supplementary angle", ans: fmt(180 - nums[0]) + "°", steps: ["Supplementary angles add up to 180°.", `Angle = 180° − ${fmt(nums[0])}° = ${fmt(180 - nums[0])}°.`] };
+  if (/triangle/.test(s) && nums.length >= 2) return { type: "Third angle of a triangle", ans: fmt(180 - total(nums)) + "°", steps: ["The angles of a triangle add up to 180°.", `Known angles = ${nums.map(fmt).join(" + ")} = ${fmt(total(nums))}°.`, `Third angle = 180° − ${fmt(total(nums))}° = ${fmt(180 - total(nums))}°.`] };
+  const shape = Object.keys(SHAPES).find((k) => s.includes(k));
+  if (shape || /polygon|sides/.test(s)) {
+    const n = shape ? SHAPES[shape] : nums[0];
+    if (n >= 3) {
+      const sm = (n - 2) * 180;
+      return { type: "Polygon angles", ans: /exterior/.test(s) ? fmt(360 / n) + "°" : /each|regular/.test(s) ? fmt(sm / n) + "°" : sm + "°", steps: [`Number of sides n = ${n}.`, `Sum of interior angles = (n − 2) × 180° = ${n - 2} × 180° = ${sm}°.`, `Each interior angle of a regular polygon = ${sm}° ÷ ${n} = ${fmt(sm / n)}°.`, `Each exterior angle = 360° ÷ ${n} = ${fmt(360 / n)}°.`] };
+    }
+  }
+  // Calendar
+  if (/leap/.test(s) && (m = s.match(/\b(\d{4})\b/))) {
+    const y = +m[1];
+    return { type: "Leap year", ans: `${y} ${y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) ? "is" : "is not"} a leap year`, steps: ["Rule: divisible by 4, but a century year must be divisible by 400.", `${y} ÷ 4 ${y % 4 === 0 ? "leaves no remainder" : "leaves a remainder"}.`, y % 100 === 0 ? `${y} is a century year, and ${y} ÷ 400 ${y % 400 === 0 ? "leaves no remainder" : "leaves a remainder"}.` : `${y} is not a century year.`] };
+  }
+  const dm = s.match(/(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([a-z]{3,})\s+(\d{4})/);
+  const mi = dm ? MONTHS.findIndex((x) => x.startsWith(dm[2].slice(0, 3))) : -1;
+  if (dm && mi >= 0) {
+    const d = +dm[1], y = +dm[3], p = y - 1, leaps = Math.floor(p / 4) - Math.floor(p / 100) + Math.floor(p / 400);
+    const doy = (Date.UTC(y, mi, d) - Date.UTC(y, 0, 1)) / 864e5 + 1, days = p * 365 + leaps + doy, r = days % 7;
+    return { type: "Day of the week for a date", ans: cap(DAYS[r]), steps: [`Complete years before ${y} = ${p}, containing ${leaps} leap years.`, `Days in those years = ${p} × 365 + ${leaps} = ${p * 365 + leaps}.`, `Days from 1 January to ${d} ${cap(MONTHS[mi])} ${y}, counting the date itself = ${doy}.`, `Total = ${days} days. ${days} ÷ 7 leaves ${r}.`, `Remainder 0 = Sunday, 1 = Monday ... 6 = Saturday, so the day is ${cap(DAYS[r])}.`] };
+  }
+  const dn = DAYS.find((x) => s.includes(x));
+  if (dn && nums.length && /after|later|from now|before|ago/.test(s)) {
+    const n = nums[0], back = /before|ago/.test(s), k = n % 7, r = (((back ? DAYS.indexOf(dn) - k : DAYS.indexOf(dn) + k) % 7) + 7) % 7;
+    return { type: "Day after a number of days", ans: cap(DAYS[r]), steps: ["Weekdays repeat every 7 days, so only the remainder matters.", `${n} ÷ 7 leaves ${k}.`, `${cap(dn)} ${back ? "−" : "+"} ${k} day${k === 1 ? "" : "s"} = ${cap(DAYS[r])}.`] };
+  }
+  // Percentages
+  if ((m = s.match(/(\d+(?:\.\d+)?)\s*(?:%|percent)\s*of\s*(\d+(?:\.\d+)?)/))) {
+    const pc = +m[1], v = +m[2];
+    return { type: "Percentage of a number", ans: fmt((pc * v) / 100), steps: [`${fmt(pc)}% of ${fmt(v)} = ${fmt(pc)} ÷ 100 × ${fmt(v)} = ${fmt((pc * v) / 100)}.`] };
+  }
+  if (nums.length === 2 && nums[0] && /increase|decrease|change|growth|rise|fall|drop|profit|loss/.test(s)) {
+    const [a, b] = nums, c = ((b - a) / a) * 100;
+    return { type: "Percentage change", ans: `${fmt(Math.abs(c))}% ${c >= 0 ? "increase" : "decrease"}`, steps: ["Percentage change = (new − old) ÷ old × 100.", `Change = ${fmt(b)} − ${fmt(a)} = ${fmt(b - a)}.`, `${fmt(b - a)} ÷ ${fmt(a)} × 100 = ${fmt(c)}%.`] };
+  }
+  // Averages and statistics
+  if (/average|mean|median|mode|range/.test(s)) {
+    if (/missing|remaining|fourth|fifth|last|other|unknown/.test(s) && nums.length >= 4) {
+      const [c, av, ...k] = nums;
+      return { type: "Missing value from an average", ans: fmt(c * av - total(k)), steps: [`Total = count × average = ${c} × ${fmt(av)} = ${fmt(c * av)}.`, `Known values = ${k.map(fmt).join(" + ")} = ${fmt(total(k))}.`, `Missing value = ${fmt(c * av)} − ${fmt(total(k))} = ${fmt(c * av - total(k))}.`] };
+    }
+    if (nums.length >= 2) {
+      const n = nums.length, so = [...nums].sort((x, y) => x - y), med = n % 2 ? so[(n - 1) / 2] : (so[n / 2 - 1] + so[n / 2]) / 2, cnt = {};
+      nums.forEach((v) => (cnt[v] = (cnt[v] || 0) + 1));
+      const mx = Math.max(...Object.values(cnt)), mode = mx > 1 ? Object.keys(cnt).filter((k) => cnt[k] === mx).join(", ") : "none (no value repeats)";
+      return { type: "Average and statistics", ans: /median/.test(s) ? fmt(med) : /mode/.test(s) ? mode : /range/.test(s) ? fmt(so[n - 1] - so[0]) : fmt(total(nums) / n), steps: [`Sum = ${nums.map(fmt).join(" + ")} = ${fmt(total(nums))}.`, `Mean = ${fmt(total(nums))} ÷ ${n} = ${fmt(total(nums) / n)}.`, `Median (middle of ${so.join(", ")}) = ${fmt(med)}.`, `Mode = ${mode}.`, `Range = ${fmt(so[n - 1])} − ${fmt(so[0])} = ${fmt(so[n - 1] - so[0])}.`] };
+    }
+  }
+  // Number series
+  if (nums.length >= 3) {
+    const q = nums, L = q[q.length - 1], d = q.slice(1).map((v, i) => v - q[i]), r = q.slice(1).map((v, i) => v / q[i]);
+    const dd = d.slice(1).map((v, i) => v - d[i]), sq = q.map(Math.sqrt), cu = q.map(Math.cbrt);
+    const seq = (a) => a.every((v, i) => i === 0 || Math.abs(v - a[i - 1] - 1) < 1e-9);
+    if (d.every((x) => x === d[0])) return { type: "Arithmetic series", ans: fmt(L + d[0]), steps: [`Differences: ${d.join(", ")}. All equal ${d[0]}.`, `Next term = ${fmt(L)} + ${d[0]} = ${fmt(L + d[0])}.`, `nth term = ${q[0]} + (n − 1) × ${d[0]}.`] };
+    if (q.every((v) => v !== 0) && r.every((x) => Math.abs(x - r[0]) < 1e-9)) return { type: "Geometric series", ans: fmt(L * r[0]), steps: [`Ratios: ${r.map(fmt).join(", ")}. All equal ${fmt(r[0])}.`, `Next term = ${fmt(L)} × ${fmt(r[0])} = ${fmt(L * r[0])}.`, `nth term = ${q[0]} × ${fmt(r[0])}^(n − 1).`] };
+    if (seq(sq)) return { type: "Series of squares", ans: fmt((sq[sq.length - 1] + 1) ** 2), steps: [`Square roots: ${sq.map(fmt).join(", ")}, increasing by 1.`, `Next = ${fmt(sq[sq.length - 1] + 1)}² = ${fmt((sq[sq.length - 1] + 1) ** 2)}.`] };
+    if (seq(cu)) return { type: "Series of cubes", ans: fmt((cu[cu.length - 1] + 1) ** 3), steps: [`Cube roots: ${cu.map(fmt).join(", ")}, increasing by 1.`, `Next = ${fmt(cu[cu.length - 1] + 1)}³ = ${fmt((cu[cu.length - 1] + 1) ** 3)}.`] };
+    if (q.length >= 4 && q.slice(2).every((v, i) => v === q[i] + q[i + 1])) return { type: "Fibonacci-type series", ans: fmt(L + q[q.length - 2]), steps: ["Each term is the sum of the two terms before it.", `Next term = ${fmt(q[q.length - 2])} + ${fmt(L)} = ${fmt(L + q[q.length - 2])}.`] };
+    if (dd.length >= 2 && dd.every((x) => x === dd[0])) { const nd = d[d.length - 1] + dd[0]; return { type: "Series with constant second difference", ans: fmt(L + nd), steps: [`First differences: ${d.join(", ")}.`, `Second differences: ${dd.join(", ")}, all equal ${dd[0]}.`, `Next difference = ${d[d.length - 1]} + ${dd[0]} = ${nd}.`, `Next term = ${fmt(L)} + ${nd} = ${fmt(L + nd)}.`] }; }
+  }
+  return null;
+}
+// Each solver asks only for numbers. t() turns them into text for solve().
+// Field format: [key, label, min, max]  |  [key, label, "list", minimum count]  |  [key, label, "day"]
+const SOLVERS = [
+  { n: "Clock angle", f: [["h", "Hour (1 to 12)", 1, 12], ["m", "Minute (0 to 59)", 0, 59]], t: (v) => `clock hands at ${v.h}:${String(v.m).padStart(2, "0")}` },
+  { n: "Pie chart: values to angles", f: [["v", "Values, separated by commas", "list", 2]], t: (v) => `pie chart values ${v.v}` },
+  { n: "Pie chart: percentages to angles", f: [["v", "Percentages, separated by commas", "list", 1]], t: (v) => `pie ${v.v.split(/[,\s]+/).filter(Boolean).map((x) => x + "%").join(" ")}` },
+  { n: "Pie chart: angle to percentage", f: [["a", "Sector angle in degrees", 0, 360]], t: (v) => `pie sector ${v.a}` },
+  { n: "Day of the week for a date", f: [["d", "Day (1 to 31)", 1, 31], ["mo", "Month (1 to 12)", 1, 12], ["y", "Year (1000 to 9999)", 1000, 9999]], t: (v) => `${v.d} ${MONTHS[v.mo - 1]} ${v.y}` },
+  { n: "Day after some days", f: [["wd", "Today is", "day"], ["n", "Number of days later", 1, 100000]], t: (v) => `${DAYS[v.wd]} after ${v.n} days` },
+  { n: "Leap year check", f: [["y", "Year (1000 to 9999)", 1000, 9999]], t: (v) => `leap year ${v.y}` },
+  { n: "Complementary angle", f: [["a", "Angle in degrees", 0, 90]], t: (v) => `complement ${v.a}` },
+  { n: "Supplementary angle", f: [["a", "Angle in degrees", 0, 180]], t: (v) => `supplement ${v.a}` },
+  { n: "Third angle of a triangle", f: [["a", "First angle", 1, 178], ["b", "Second angle", 1, 178]], ok: (v) => +v.a + +v.b < 180, err: "The two angles must add up to less than 180°.", t: (v) => `triangle ${v.a} ${v.b}` },
+  { n: "Polygon angles", f: [["n", "Number of sides (3 or more)", 3, 100]], t: (v) => `polygon ${v.n} sides` },
+  { n: "Percentage change", f: [["a", "Old value", 0.01, 1000000000], ["b", "New value", 0, 1000000000]], t: (v) => `change from ${v.a} to ${v.b}` },
+  { n: "Percentage of a number", f: [["p", "Percentage", 0, 1000], ["v", "Number", 0, 1000000000]], t: (v) => `${v.p}% of ${v.v}` },
+  { n: "Average, median, mode and range", f: [["v", "Values, separated by commas", "list", 2]], t: (v) => `average ${v.v}` },
+  { n: "Missing value from an average", f: [["c", "How many values in total", 2, 1000], ["av", "Their average", -1000000000, 1000000000], ["k", "Known values, separated by commas", "list", 1]], t: (v) => `average ${v.c} ${v.av} ${v.k} missing` },
+  { n: "Number series", f: [["v", "Series terms, separated by commas (at least 3)", "list", 3]], t: (v) => `series ${v.v}` },
+];
+// SOLVER-END
+
+async function showSolver(sel = 0) {
+  setNav("solve");
+  const S = SOLVERS[sel];
+  const hist = (await getAll("history")).filter((h) => h.user === user).slice(-5).reverse();
+  const fields = S.f.map(([k, label, a, b]) => a === "day"
+    ? `<label>${esc(label)}<select id="f-${k}">${DAYS.map((d, i) => `<option value="${i}">${cap(d)}</option>`).join("")}</select></label>`
+    : `<label>${esc(label)}<input id="f-${k}" ${a === "list" ? 'placeholder="for example 10, 20, 30"' : `type="number" step="any" min="${a}" max="${b}"`}></label>`).join("");
+  $("#app").innerHTML = `
+    <h1>Question solver</h1>
+    <p class="muted">Pick the type of question, enter only the numbers, and get the full method and answer.</p>
+    <div class="card"><label>Question type<select id="type">${SOLVERS.map((x, i) => `<option value="${i}" ${i === sel ? "selected" : ""}>${esc(x.n)}</option>`).join("")}</select></label>
+      ${fields}<p id="err" class="small" style="color:var(--red)"></p>
+      <div class="row"><button id="solve" class="btn">Solve with steps</button></div></div>
+    <div id="out"></div>
+    <div class="card"><h2>Your recent questions</h2>${hist.length ? `<table><tr><th>Question</th><th>Answer</th></tr>${hist.map((h) => `<tr><td>${esc(h.q)}</td><td>${esc(h.ans)}</td></tr>`).join("")}</table>` : `<p class="muted">Questions you solve are saved here.</p>`}</div>`;
+  $("#type").onchange = () => showSolver(+$("#type").value);
+  $("#solve").onclick = async () => {
+    const v = {}; let bad = "";
+    S.f.forEach(([k, label, a, b]) => {
+      const raw = $("#f-" + k).value.trim();
+      if (a === "day") { v[k] = +raw; return; }
+      if (a === "list") {
+        const parts = raw.split(/[,\s]+/).filter(Boolean);
+        if (parts.length < b || parts.some((x) => isNaN(x))) bad = bad || `${label}: enter at least ${b} numbers.`;
+        v[k] = parts.join(", "); return;
+      }
+      if (raw === "" || isNaN(raw) || +raw < a || +raw > b) bad = bad || `${label}: enter a number from ${a} to ${b}.`;
+      v[k] = raw;
+    });
+    if (!bad && S.ok && !S.ok(v)) bad = S.err;
+    $("#err").textContent = bad;
+    if (bad) { $("#out").innerHTML = ""; return; }
+    const r = solve(S.t(v));
+    $("#out").innerHTML = r
+      ? `<div class="card"><h2>${esc(r.type)}</h2><ol>${r.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol><div class="why"><b>Answer: ${esc(r.ans)}</b></div></div>`
+      : `<div class="card"><h2>No solution found</h2><p class="muted">Check the numbers and try again.</p></div>`;
+    if (r) await addRow("history", { user, q: `${S.n}: ${S.f.map(([k]) => (k === "wd" ? DAYS[v[k]] : v[k])).join(", ")}`, type: r.type, ans: r.ans, date: Date.now() });
+  };
+}
+
+// ---------- 5d. LOGIN ----------
+let user = null; // username of the person logged in
+async function hashText(text) {
+  try { // store a SHA-256 hash, never the plain password
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, "0")).join("");
+  } catch (e) { let h = 5381; for (const c of text) h = (h * 33 + c.charCodeAt(0)) >>> 0; return "x" + h; }
+}
+function afterLogin() {
+  $("#nav").style.display = "flex";
+  $("#n-out").textContent = `Log out (${user})`;
+  showDashboard();
+}
+function showLogin(mode = "login") {
+  user = null;
+  try { sessionStorage.removeItem("user"); } catch (e) {}
+  $("#nav").style.display = "none";
+  const reg = mode === "register";
+  $("#app").innerHTML = `
+    <div class="card auth"><h1>${reg ? "Create account" : "Welcome to LogicLab"}</h1>
+      <p class="muted">${reg ? "Choose a username and password to save your scores." : "Log in to learn, practise and save your scores."}</p>
+      <label>Username<input id="u" autocomplete="username"></label>
+      <label>Password<input id="pw" type="password" autocomplete="${reg ? "new-password" : "current-password"}"></label>
+      <p id="msg" class="small" style="color:var(--red)"></p>
+      <div class="row"><button id="ok" class="btn">${reg ? "Create account" : "Log in"}</button><button id="sw" class="btn alt">${reg ? "I already have an account" : "Create an account"}</button></div></div>`;
+  const go = async () => {
+    const key = $("#u").value.trim().toLowerCase(), pw = $("#pw").value, msg = $("#msg");
+    if (key.length < 3) { msg.textContent = "Username needs at least 3 characters."; return; }
+    if (pw.length < 4) { msg.textContent = "Password needs at least 4 characters."; return; }
+    const row = await wait(table("users").get(key)), h = await hashText(pw);
+    if (reg) {
+      if (row) { msg.textContent = "That username is already taken."; return; }
+      await addRow("users", { username: key, hash: h, created: Date.now() });
+    } else if (!row || row.hash !== h) { msg.textContent = "Wrong username or password."; return; }
+    user = key;
+    try { sessionStorage.setItem("user", user); } catch (e) {}
+    afterLogin();
+  };
+  $("#ok").onclick = go;
+  $("#sw").onclick = () => showLogin(reg ? "login" : "register");
+  ["#u", "#pw"].forEach((s) => ($(s).onkeydown = (e) => { if (e.key === "Enter") go(); }));
+}
+
+// ---------- 6. START THE APP ----------
+$("#n-dash").onclick = showDashboard;
+$("#n-learn").onclick = () => showLearn();
+$("#n-prac").onclick = showPractice;
+$("#n-solve").onclick = () => showSolver();
+$("#n-out").onclick = () => showLogin();
+(async () => {
+  try {
+    db = await openDB();
+    await seed();
+    try { user = sessionStorage.getItem("user"); } catch (e) {}
+    user ? afterLogin() : showLogin();
+  } catch (e) {
+    $("#app").innerHTML = `<div class="card"><h2>The database could not be opened</h2><p class="muted">${esc(e.message || e)}. Open this file in a normal (not private) window of Chrome, Edge or Firefox.</p></div>`;
+  }
+})();
+</script>
+</body>
+</html>
